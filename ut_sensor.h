@@ -48,7 +48,7 @@ int get_ut_distance() {
   // The same pin is used to read the signal from the PING))): a HIGH pulse
   // whose duration is the time (in microseconds) from the sending of the ping
   // to the reception of its echo off of an object.
-  duration = pulseIn(echoPin, HIGH,25000);
+  duration = pulseIn(echoPin, HIGH,25000);//max 25 ft
 
   // convert the time into a distance
   inches = microsecondsToInches(duration);
