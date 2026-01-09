@@ -48,17 +48,19 @@ int get_ut_distance() {
   // The same pin is used to read the signal from the PING))): a HIGH pulse
   // whose duration is the time (in microseconds) from the sending of the ping
   // to the reception of its echo off of an object.
-  duration = pulseIn(echoPin, HIGH,25000);//max 25 ft
+  duration = pulseIn(echoPin, HIGH,25000);//max 25 ft (12 ft back and forth)
 
   // convert the time into a distance
   inches = microsecondsToInches(duration);
   cm = microsecondsToCentimeters(duration);
 
-  Serial.print(inches);
-  Serial.print("in, ");
-  Serial.print(cm);
-  Serial.print("cm");
-  Serial.println();
+  if(cm != 0 && inches == 0)inches = 1;
+  if(inches == 0)inches = 12 * 13.9;
+  // Serial.print(inches);
+  // Serial.print("in, ");
+  // Serial.print(cm);
+  // Serial.print("cm");
+  // Serial.println();
   return (int)inches;
 }
 

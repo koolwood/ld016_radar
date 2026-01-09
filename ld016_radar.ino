@@ -3,7 +3,7 @@
 #include "ut_sensor.h"
 #include <EEPROM.h>
 
-int debug = 0,btupdate = 0;
+int debug = 1,btupdate = 0;
 int ledPin = 8;
 int redledPin = 2;
 int yellowledPin = 3;
@@ -11,12 +11,12 @@ int greenledPin = 4;
 
 int distance = 2,light_time = 1,photo = 100,motion_delta = 100,radar_on = 1,ut_distance = 1;
 int yellow_limit = 7,green_limit = 10,red_limit = 3,motion_time_limit = 5 ;
-bool stream_data = false;
+bool stream_data = false,test_radar = false;
 
 
 void setup(){
   Serial.begin(115200);
-  Serial1.begin(115200,SERIAL_8N1,9,7);
+  Serial1.begin(115200,SERIAL_8N1,20,21);
   delay(3000);
   Serial.println("Begin !");
   Serial.println("Begin ok!");
@@ -30,7 +30,11 @@ void setup(){
   pinMode(yellowledPin, OUTPUT);
   pinMode(greenledPin, OUTPUT);
   pinMode(6, INPUT_PULLUP);
+  delay(5000);
   setup_ld016();
+  delay(5000);
+  get_ldo16_setup();
+  delay(5000);
   get_ldo16_setup();
   digitalWrite(greenledPin,1); 
   digitalWrite(yellowledPin,1); 
@@ -43,45 +47,61 @@ void setup(){
 
 void loop(){
   static int motion = 0,cycle_started = 0;
-  static int ut_distance;
-  if(digitalRead(6)){
-    motion += 1;
-    if(motion > motion_time_limit)motion = motion_time_limit;
+  int ut_distance ;
+    ut_distance = avg5();//get_ut_distance();
+  if(test_radar){
+    if(digitalRead(6))digitalWrite(greenledPin,1); 
+    else digitalWrite(greenledPin,0);
+    blloop(String("radar m=" + String(digitalRead(6)) + String(",p=") + String(get_distance()) + String(",l=") + String(get_lighting_time()) + String(",s=") + String(get_photosensitivity()) + String(",d=") + String(get_motion_detection_delta()) +  String("\r\n")));
+    motion = 0; 
+    cycle_started = 0;
   }else{
-     motion -= 1;
-     if(motion < 0)motion = 0;
-  }
-  digitalWrite(ledPin,digitalRead(6));
-  ut_distance = get_ut_distance();
-  if(ut_distance == 0)ut_distance = 100;
-  if((ut_distance > red_limit && motion >= motion_time_limit) || cycle_started ){
-    cycle_started = 1;
-    if(ut_distance > yellow_limit){
+    if(digitalRead(6)){
+      motion += 1;
+      if(motion > motion_time_limit)motion = motion_time_limit;
+      if(motion > motion_time_limit / 2)cycle_started = 1;
+    }else{
+      motion -= 1;
+      if(motion < 0)motion = 0;
+      if(motion == 0)cycle_started = 0;
+    }
+    digitalWrite(ledPin,!digitalRead(6));
+//    if(ut_distance == 0)ut_distance = 144;
+    if(cycle_started ){
+      if(ut_distance > yellow_limit){
+        digitalWrite(greenledPin,0); 
+        digitalWrite(yellowledPin,1); 
+        digitalWrite(redledPin,1); 
+      }
+      else if(ut_distance < yellow_limit && ut_distance > red_limit){
+        digitalWrite(greenledPin,1); 
+        digitalWrite(yellowledPin,0); 
+        digitalWrite(redledPin,1); 
+      }
+      else if(ut_distance <  red_limit){
+        digitalWrite(greenledPin,1); 
+        digitalWrite(yellowledPin,1); 
+        digitalWrite(redledPin,0); 
+      }
+    }else{
       digitalWrite(greenledPin,1); 
-      digitalWrite(yellowledPin,0); 
-      digitalWrite(redledPin,0); 
-    }
-    else if(ut_distance < yellow_limit && ut_distance > red_limit){
-      digitalWrite(greenledPin,0); 
       digitalWrite(yellowledPin,1); 
-      digitalWrite(redledPin,0); 
-    }
-    else if(ut_distance <  red_limit){
-      digitalWrite(greenledPin,0); 
-      digitalWrite(yellowledPin,0); 
       digitalWrite(redledPin,1); 
     }
   }
-  if(cycle_started && motion == 0){
-    cycle_started = 0;
-    digitalWrite(greenledPin,0); 
-    digitalWrite(yellowledPin,0); 
-    digitalWrite(redledPin,0); 
-  }
   delay(500);
-  Serial.printf("motion = %d,cycle_started = %d\n\r",motion,cycle_started);
+  Serial.printf("distance = %d,motion = %d,cycle_started = %d\n\r",ut_distance,motion,cycle_started);
   if(stream_data) blloop(String("motion = ") + String(motion) + String(", cycle_started =") + String(cycle_started) + String(", ut distance =") + String(ut_distance) +  String("\r\n"));
   process_input();
+}
+
+int avg5(){
+  int avg =0;
+  for(int x = 0;x < 5;x++){
+    avg += get_ut_distance();
+    delay(60);
+  }
+  return avg / 5;
 }
 
 void get_ldo16_setup(){
@@ -115,7 +135,6 @@ void setup_ld016(){
   // Serial.printf("get_save_radar_status = %d\n\r",get_save_radar_status());
 }
 void load_up_eeprom(bool clear_data,bool update){
-  String mess;
   int eeprom_initialized = 0;
   EEPROM.get(0,eeprom_initialized);
   if(eeprom_initialized != 1 || clear_data){
@@ -149,13 +168,18 @@ void load_up_eeprom(bool clear_data,bool update){
     EEPROM.get(32,motion_time_limit);
   }
   EEPROM.commit();
+  print_setup();
+}
+
+void print_setup(){
+  String mess;
   mess = String("radar distance = ") + String(distance) +String("\r\n") + String("radar light = ") + String(light_time) +String("\r\n");
   blloop(mess);
   mess = String("radar photo = ") + String(photo) +String("\r\n") + String("radar motion = ") + String(motion_delta) +String("\r\n");
   blloop(mess);
   mess = String("yellow limit = ") + String(yellow_limit) +String("\r\n") + String("red limit= ") + String(red_limit) +String("\r\n");
   blloop(mess);
-  mess = String("time limit = ") + String(motion_time_limit) +String("\r\n ");
+  mess = String("motion time limit = ") + String(motion_time_limit) +String("\r\n ");
   blloop(mess);
 
 }
@@ -163,7 +187,7 @@ void load_up_eeprom(bool clear_data,bool update){
 void process_input() {
   String mess;
   if (rxdata != 0) {
-    if (rxdata == 'h')mess = "connected\r\nCapital letter increases value\r\nlower case decreases value\r\n\r\nc=clear eeprom, d=distance, l=light time\r\np=photo, m=motion delta, w=update eeprom\r\ny=yellow limit, r=red limit, t=motion time\r\ns=get setup\r\n";
+    if (rxdata == 'h')mess = "connected\r\nCapital letter increases value\r\nlower case decreases value\r\n\r\nc=clear eeprom, d=distance, l=light time\r\np=photo, m=motion delta, w=update eeprom\r\ny=yellow limit, r=red limit, t=motion time\r\ns=get setup, 1=stream, S=get setup\r\n";
     else if (rxdata == 'c'){ mess = "clearing data\r\n";load_up_eeprom(true,false);}//reset eeprom
     else if (rxdata == 'D'){distance++;if(distance>15)distance=15; mess = String("increased distance to ") + String(distance) +String("\r\n");}
     else if (rxdata == 'd'){distance--;if(distance<1)distance=1; mess = String("decreased distance to ") + String(distance) +String("\r\n");}
@@ -181,7 +205,9 @@ void process_input() {
     else if (rxdata == 't'){motion_time_limit-=2;if(motion_time_limit<4)motion_time_limit=4; mess = String("decreased motion_time_limit to ") + String(motion_time_limit) +String("\r\n");}
     else if (rxdata == 'w'){mess = "update eeprom\r\n";load_up_eeprom(false,true);}
     else if (rxdata == 's')load_up_eeprom(false,false); //send setup
+    else if (rxdata == 'S')print_setup(); //send setup
     else if (rxdata == '1'){stream_data = !stream_data;if(stream_data) mess = String("stream on\r\n");else  mess = String("stream off\r\n");}
+    else if (rxdata == '2'){test_radar = !test_radar;if(test_radar) mess = String("test_radar on\r\n");else  mess = String("test_radar off\r\n");}
     else mess = "invalid data send 'h' for help\n";
     setup_ld016();
     get_ldo16_setup();
