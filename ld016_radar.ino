@@ -3,7 +3,7 @@
 #include "ut_sensor.h"
 #include <EEPROM.h>
 
-int debug = 1,btupdate = 0;
+int debug = 0,btupdate = 0;
 int ledPin = 8;
 int redledPin = 2;
 int yellowledPin = 3;
@@ -15,14 +15,13 @@ bool stream_data = false,test_radar = false;
 
 
 void setup(){
+  delay(5000);
   Serial.begin(115200);
   Serial1.begin(115200,SERIAL_8N1,20,21);
-  delay(3000);
   Serial.println("Begin !");
   Serial.println("Begin ok!");
   EEPROM.begin(2048);
   load_up_eeprom(false,false);
-
   blsetup();
   utsetup();
   pinMode(ledPin, OUTPUT);
@@ -30,12 +29,10 @@ void setup(){
   pinMode(yellowledPin, OUTPUT);
   pinMode(greenledPin, OUTPUT);
   pinMode(6, INPUT_PULLUP);
-  delay(5000);
+  delay(1000);
+  set_radar_on_off(0);
   setup_ld016();
-  delay(5000);
-  get_ldo16_setup();
-  delay(5000);
-  get_ldo16_setup();
+  print_ldo16_setup();
   digitalWrite(greenledPin,1); 
   digitalWrite(yellowledPin,1); 
   digitalWrite(redledPin,1); 
@@ -66,7 +63,6 @@ void loop(){
       if(motion == 0)cycle_started = 0;
     }
     digitalWrite(ledPin,!digitalRead(6));
-//    if(ut_distance == 0)ut_distance = 144;
     if(cycle_started ){
       if(ut_distance > yellow_limit){
         digitalWrite(greenledPin,0); 
@@ -104,21 +100,25 @@ int avg5(){
   return avg / 5;
 }
 
-void get_ldo16_setup(){
+void print_ldo16_setup(){
   Serial.printf("\n\rdistance = %d\n\r",get_distance());
   Serial.printf("get_lighting_time = %d\n\r",get_lighting_time());
   Serial.printf("get_photosensitivity = %d\n\r",get_photosensitivity());
   Serial.printf("get_motion_detection_delta = %d\n\r",get_motion_detection_delta());
-  // Serial.printf("get_micro_motion_detection_sensing_distance = %d\n\r",get_micro_motion_detection_sensing_distance());
   Serial.printf("get_radar_on_off = %d\n\r",get_radar_on_off());
   Serial.printf("get_save_radar_status = %d\n\r\n\r",get_save_radar_status());
 }
 
 void setup_ld016(){
+  delay(100);
   set_distance(distance);
+  delay(100);
   set_lighting_time(light_time);
+  delay(100);
   set_photosensitivity(photo);
+  delay(100);
   set_motion_detection_delta(motion_delta);
+  delay(100);
   // set_micro_motion_detection_sensing_distance(15);
   // set_light_on_off(0);
   // delay(1000);
@@ -128,6 +128,7 @@ void setup_ld016(){
   // set_radar_on_off(0);
   // Serial.printf("get_radar_on_off = %d\n\r",get_radar_on_off());
   set_radar_on_off(1);
+  delay(100);
   Serial.printf("get_radar_on_off = %d\n\r",get_radar_on_off());
   // set_save_radar(1);
   // Serial.printf("get_save_radar_status = %d\n\r",get_save_radar_status());
@@ -168,10 +169,10 @@ void load_up_eeprom(bool clear_data,bool update){
     EEPROM.get(32,motion_time_limit);
   }
   EEPROM.commit();
-  print_setup();
+  send_setup();
 }
 
-void print_setup(){
+void send_setup(){
   String mess;
   mess = String("radar distance = ") + String(distance) +String("\r\n") + String("radar light = ") + String(light_time) +String("\r\n");
   blloop(mess);
@@ -205,12 +206,12 @@ void process_input() {
     else if (rxdata == 't'){motion_time_limit-=2;if(motion_time_limit<4)motion_time_limit=4; mess = String("decreased motion_time_limit to ") + String(motion_time_limit) +String("\r\n");}
     else if (rxdata == 'w'){mess = "update eeprom\r\n";load_up_eeprom(false,true);}
     else if (rxdata == 's')load_up_eeprom(false,false); //send setup
-    else if (rxdata == 'S')print_setup(); //send setup
+    else if (rxdata == 'S')send_setup(); //send setup
     else if (rxdata == '1'){stream_data = !stream_data;if(stream_data) mess = String("stream on\r\n");else  mess = String("stream off\r\n");}
     else if (rxdata == '2'){test_radar = !test_radar;if(test_radar) mess = String("test_radar on\r\n");else  mess = String("test_radar off\r\n");}
     else mess = "invalid data send 'h' for help\n";
     setup_ld016();
-    get_ldo16_setup();
+    print_ldo16_setup();
  
     rxdata = 0;
     blloop(mess);
