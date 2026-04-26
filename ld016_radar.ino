@@ -56,7 +56,7 @@ void loop(){
   }else{
     if(digitalRead(radarPin)){
       motion += 1;
-      if(motion > motion_trigger)motion = motion_time_limit;
+      if(motion >= motion_trigger)motion = motion_time_limit;
     }else{
       motion -= 1;
       if(motion < 0)motion = 0;
@@ -88,7 +88,7 @@ void loop(){
   }
   delay(500);
   Serial.printf("distance = %d,motion = %d,cycle_started = %d\n\r",ut_distance,motion,cycle_started);
-  if(stream_data) blloop(String("motion = ") + String(motion) + String(", cycle_started =") + String(cycle_started) + String(", ut distance =") + String(ut_distance) +  String("\r\n"));
+  if(stream_data) blloop(String("motion cnt = ") + String(motion) + String(", cyc started =") + String(cycle_started) + String(", ut dist =") + String(ut_distance) +  String("\r\n"));
   process_input();
 }
 
@@ -140,14 +140,15 @@ void load_up_eeprom(bool clear_data,bool update){
   int eeprom_initialized = 0;
   EEPROM.get(0,eeprom_initialized);
   if(eeprom_initialized != 1 || clear_data){
-    distance = 2;
+    distance = 7;
     light_time = 1;
     photo = 100;
     motion_delta = 100;
     radar_on = 1;
     yellow_limit = 50;
     red_limit = 20;
-    motion_time_limit = 5;
+    motion_time_limit = 15;
+    motion_trigger = 2;
   }
   if(eeprom_initialized != 1 || update || clear_data){
     EEPROM.put(0,1);
@@ -199,8 +200,8 @@ void process_input() {
     else if (rxdata == 'l'){light_time--;if(light_time<1)light_time=1; mess = String("decreased light_time to ") + String(light_time) +String("\r\n");}
     else if (rxdata == 'P'){photo+=100;if(photo>2000)photo=2000; mess = String("increased photo to ") + String(photo) +String("\r\n");}
     else if (rxdata == 'p'){photo-=100;if(photo<100)photo=100; mess = String("decreased photo to ") + String(photo) +String("\r\n");}
-    else if (rxdata == 'M'){motion_delta+=100;if(motion_delta>2000)motion_delta=2000; mess = String("increased motion_delta to ") + String(motion_delta) +String("\r\n");}
-    else if (rxdata == 'm'){motion_delta-=100;if(motion_delta<100)motion_delta=100; mess = String("decreased motion_delta to ") + String(motion_delta) +String("\r\n");}
+    else if (rxdata == 'M'){motion_delta+=25;if(motion_delta>2000)motion_delta=2000; mess = String("increased motion_delta to ") + String(motion_delta) +String("\r\n");}
+    else if (rxdata == 'm'){motion_delta-=25;if(motion_delta<25)motion_delta=25; mess = String("decreased motion_delta to ") + String(motion_delta) +String("\r\n");}
     else if (rxdata == 'R'){motion_trigger+=1;if(motion_trigger>motion_time_limit/2)motion_trigger=motion_time_limit/2; mess = String("increased motion_trigger to ") + String(motion_trigger) +String("\r\n");}
     else if (rxdata == 'r'){motion_trigger-=1;if(motion_trigger<1)motion_trigger=1; mess = String("decreased motion_trigger to ") + String(motion_trigger) +String("\r\n");}
     else if (rxdata == 'Y'){yellow_limit+=5;if(yellow_limit>80)yellow_limit=80; mess = String("increased yellow_limit to ") + String(yellow_limit) +String("\r\n");}
