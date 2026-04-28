@@ -59,16 +59,16 @@ class MyCallbacks : public BLECharacteristicCallbacks {
     String rxValue = pCharacteristic->getValue();
 
     if (rxValue.length() > 0) {
-      Serial.println("*********");
-//      if(1||debug == 5){
+//       Serial.println("*********");
+// //      if(1||debug == 5){
         Serial.print("bt Received Value: ");
         for (int i = 0; i < rxValue.length(); i++) {
           Serial.print(rxValue[i]);
         }
 
         Serial.println();
-         Serial.println("*********");
-         Serial.println("*********");
+        //  Serial.println("*********");
+        //  Serial.println("*********");
 //      }
       rxdata = rxValue[0];
       btupdate = 1;
@@ -80,7 +80,8 @@ void blsetup() {
   Serial.begin(115200);
 
   // Create the BLE Device
-  BLEDevice::init("RADAR");
+  //BLEDevice::init("RADAR");
+  BLEDevice::init("IRSENSOR");
 
   // Create the BLE Server
   pServer = BLEDevice::createServer();
